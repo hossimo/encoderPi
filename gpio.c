@@ -9,7 +9,6 @@
 #include <sys/mman.h>
 #include <unistd.h>
 #include <signal.h>
-#include <curl/curl.h>
 
 #define PAGE_SIZE (4*1024)
 #define BLOCK_SIZE (4*1024)
@@ -19,6 +18,10 @@ void *gpio_map;
 
 //IO access
 volatile unsigned *gpio;
+
+// globals
+static volatile int keepRunning = 1;
+
 
 // GPIO setup macros. Always use INP_GPIO(x) before using OUT_GPIO(x) or SET_GPIO_ALT(x,y)
 #define INP_GPIO(g) *(gpio+((g)/10)) &= ~(7<<(((g)%10)*3))
@@ -33,35 +36,21 @@ volatile unsigned *gpio;
 #define GPIO_PULL *(gpio+37) // Pull up/pull down
 #define GPIO_PULLCLK0 *(gpio+38) // Pull up/pull down clock
 
+// enums
+typedef enum {kWAIT, kRIGHT, kLEFT} encodermode;
+
+
+// fuction definations
 void setup_io();
-
-void printButton(int g)
-{
-  if (GET_GPIO(g)) // !=0 <-> bit is 1 <- port is HIGH=3.3V
-    printf("Button pressed!\n");
-  else // port is LOW=0V
-    printf("Button released!\n");
-}
-static volatile int keepRunning = 1;
-
-void intHandler (int dummy) {
-  keepRunning = 0;
-}
+void printButton(int g);
+void intHandler (int dummy);
 
 
 int main(int argc, char **argv)
 {
-
+  int pattern [4] = {0, 1, 3, 2};
+  // setup signal handler
   signal (SIGINT, intHandler);
-  // turn the cursor off
-  printf("\n\e[?25l");
-    fflush(stdout);
-    // // cursor back on until I make this real
-    // printf("\e[?25h");
-    //   fflush(stdout) ;
-
-
-  int g,rep;
 
   // Set up gpi pointer for direct register access
   setup_io();
@@ -75,35 +64,85 @@ int main(int argc, char **argv)
   * so at least you still have your code changes written to the SD-card! *
  \************************************************************************/
 
-  // Set GPIO pins 7-11 to output
-  for (g=7; g<=11; g++)
+  // Set GPIO pins 7-11 to inputs
+  for (int g=7; g<=11; g++)
   {
     INP_GPIO(g); // must use INP_GPIO before we can use OUT_GPIO
-    //OUT_GPIO(g);
   }
 
-  //GPIO_PULL = 0;
-  //GPIO_PULL = 0xFF;
-printf("\n");
-printf("GPIO  7│ 8│ 9│10│11\n");
-printf("     ──┼──┼──┼──┼──\n");
-printf("\e[?25l");
+  // turn the cursor off
+  printf("\n\e[?25l");
+  printf("\n");
+  printf("GPIO 10│11\n");
+  printf("     ──┼──\n");
+  fflush(stdout);
+
+  encodermode mode = kWAIT;
+  int lastPosition = -1;
+  int currentPosition = -1;
+  int cycle = -1;
+  long counter = 0;
+
 while (keepRunning)
 {
-  int result[30];
-  for (int i = 0; i <= 25; i++)
-      result[i] = GET_GPIO(i) == 0 ? 0 : 1;
-  // if (!first)
-  //   printf("\b\b\b\b\b\b\b\b\b");
-  // first = 0;
-  // printf("\e[?25l");
-  printf("\e[27D      %d│ %d│ %d│ %d│ %d",
-  result[7],
-  result[8],
-  result[9],
-  result[10],
-  result[11]);
-  // printf("\e[?25h");
+  //load up the GPIOs
+  int result [2];
+  result[0] = GET_GPIO(10) == 0 ? 0 : 1;
+  result[1] = GET_GPIO(11) == 0 ? 0 : 1;
+
+  currentPosition = result[0] + (result[1] << 1);
+
+  // if we havent moved then start over
+  if (lastPosition == currentPosition)
+    continue;
+
+  //not yet sure where we are
+  if (mode == kWAIT) {
+    for (int i = 0; i <= 3; i++) {
+      if (pattern[i] == currentPosition)
+        {
+          cycle = i;
+          break;
+        }
+    }
+  }
+
+  // if the last is +/- 1 place in the pattern then adjust the cycle
+  if (lastPosition == pattern[cycle == 3 ? 0 : cycle + 1]) {
+    mode = kLEFT;
+    cycle = cycle == 0 ? 3 : --cycle;
+    counter++;
+  }
+  else if (lastPosition == pattern[cycle == 0 ? 3 : cycle - 1]) {
+    mode = kRIGHT;
+    cycle = cycle == 3 ? 0 : ++cycle;
+    counter--;
+  }
+  else // we skipped 1 or more ticks.
+    mode = kWAIT;
+
+  char * resultString;
+  switch (mode) {
+    case kWAIT:
+      resultString = "--";
+      break;
+    case kRIGHT:
+      resultString = ">>";
+      break;
+    case kLEFT:
+      resultString = "<<";
+      break;
+  }
+
+  printf("\e[100D      %d│ %d %s %ld    ",
+    result[0],
+    result[1],
+    resultString,
+    counter
+  );
+  // printf("[%d]l:%d c:%d - %s\n",cycle, lastPosition, currentPosition, resultString);
+
+  lastPosition = currentPosition;
 }
 // turn the curson back on
 printf("\n\n");
@@ -148,3 +187,15 @@ void setup_io()
 
 
 } // setup_io
+
+void printButton(int g)
+{
+  if (GET_GPIO(g)) // !=0 <-> bit is 1 <- port is HIGH=3.3V
+    printf("Button pressed!\n");
+  else // port is LOW=0V
+    printf("Button released!\n");
+}
+
+void intHandler (int dummy) {
+  keepRunning = 0;
+}

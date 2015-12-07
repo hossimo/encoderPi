@@ -10,6 +10,8 @@
 #include <unistd.h>
 #include <signal.h>
 
+#include "ArtNetSender.h"
+
 #define PAGE_SIZE (4*1024)
 #define BLOCK_SIZE (4*1024)
 
@@ -48,6 +50,8 @@ void intHandler (int dummy);
 
 int main(int argc, char **argv)
 {
+  //init Art-Net socket
+  int socket = buildSocket();
   int pattern [4] = {0, 1, 3, 2};
   // setup signal handler
   signal (SIGINT, intHandler);
@@ -140,6 +144,11 @@ while (keepRunning)
     resultString,
     counter
   );
+  sendPacket (socket, 0, 0, k16Bit, counter);
+
+  // printf("sent: %d",sendPacket(socket));
+  fflush(stdout) ;
+
   // printf("[%d]l:%d c:%d - %s\n",cycle, lastPosition, currentPosition, resultString);
 
   lastPosition = currentPosition;
@@ -147,7 +156,6 @@ while (keepRunning)
 // turn the curson back on
 printf("\n\n");
 printf("\e[?25h");
-fflush(stdout) ;
 
   return 0;
 

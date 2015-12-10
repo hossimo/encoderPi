@@ -10,6 +10,7 @@ const int gpios [] = {10, 11};                  // what GPIOs to watch
 const int gpioCount = sizeof(gpios)/sizeof(int); // count of GPIOs
 int fpValue [kMAX_GPIO];                        // file pointer for each GPIO value
 struct pollfd fds[kMAX_GPIO];                   // file change poll for each GPIO
+long counter = 0;                               // position counter
 
 // enums
 typedef enum {kWAIT, kRIGHT, kLEFT} encodermode;
@@ -20,8 +21,13 @@ typedef enum {kWAIT, kRIGHT, kLEFT} encodermode;
 // TODO: watch a config file
 int main(int argc, char **argv)
 {
-  //init Art-Net socket
-  int socket = buildSocket();
+  // artnet thread
+  //
+  pthread_t threadArtnet;
+  int threadResult = pthread_create(&threadArtnet, NULL,&artnet_thread, NULL);
+  if (threadResult) {
+    printf("failed to create artnet thread %d\n", threadResult);
+  }
 
   // setup signal handler
   signal (SIGINT, intHandler);
@@ -55,7 +61,6 @@ int main(int argc, char **argv)
   int lastPosition = -1;
   int currentPosition = -1;
   int cycle = -1;
-  long counter = 0;
   while (keepRunning){
     // block until file has changed.
     int ret = poll(fds, gpioCount, -1);
@@ -130,8 +135,6 @@ int main(int argc, char **argv)
     resultString,
     counter
   );
-  //TODO: fork() artnet stuff.
-  sendPacket (socket, 0, 0, k16Bit, counter);
 
   fflush(stdout) ;
   lastPosition = currentPosition;
@@ -210,4 +213,18 @@ void setup_io()
 //
 void intHandler (int dummy) {
   keepRunning = 0;
+}
+
+//
+// void thArtnet (void) {
+//
+void *artnet_thread (void *arg) {
+  //init Art-Net socket
+  int socket = buildSocket();
+
+  while (1) {
+    sendPacket (socket, 0, 0, k16Bit, counter);
+    usleep(33000);
+  }
+return NULL;
 }

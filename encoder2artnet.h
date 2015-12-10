@@ -4,7 +4,6 @@
 #include <sys/mman.h>
 #include <unistd.h>
 #include <signal.h>
-
 #include <poll.h>
 #include <pthread.h>
 #include <semaphore.h>
@@ -16,3 +15,4 @@ void setup_io();
 void destroy_io();
 void printButton(int g);
 void intHandler (int dummy);
+void *artnet_thread (void *arg);

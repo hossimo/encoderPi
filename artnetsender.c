@@ -1,5 +1,4 @@
 #include "ArtNetSender.h"
-#include <string.h>
 
 //globals
 ArtnetDmxHeader artnetPacket;
@@ -7,7 +6,8 @@ struct sockaddr_in address;
 int seq = 0;
 
 
-int buildSocket (void){
+int buildSocket (){
+
   strcpy(artnetPacket.ID, "Art-Net");
   artnetPacket.OpCode = 0x5000;
   artnetPacket.version = htons(0x000e);
@@ -16,7 +16,6 @@ int buildSocket (void){
   memset(artnetPacket.data, 0, sizeof(artnetPacket.data));
 
   int localSocket = -1;
-  int universe = -1;
 
   if (localSocket < 0)
     localSocket = socket(AF_INET, SOCK_DGRAM, 0);
@@ -37,8 +36,6 @@ int buildSocket (void){
   // who should we send this data too?
       inet_pton(AF_INET, "255.255.255.255", &address.sin_addr);
 
-
-  printf ("WE HAVE A LOCAL SOCKET (%d)\n", localSocket);
   return localSocket;
 }
 
@@ -71,12 +68,12 @@ int sendPacket (unsigned int socket, unsigned int universe, unsigned int startCh
 }
 
   ssize_t sent = sendto(
-    socket,
-    (void*)&artnetPacket,
-    sizeof(artnetPacket),
-    0,
-    (struct sockaddr*) &address,
-    sizeof(struct sockaddr_in)
+    socket,                         //what socket
+    (void*)&artnetPacket,           //data
+    sizeof(artnetPacket),           //sizeof(data)
+    0,                              //flags
+    (struct sockaddr*) &address,    //to address
+    sizeof(struct sockaddr_in)      //sizeof(address)
   );
-  return 0;
+  return sent;
 }

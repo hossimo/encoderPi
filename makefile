@@ -1,18 +1,23 @@
-all: build/gpio
+CC=gcc
+FLAGS=-std=c11
+INSTALLPATH=/usr/local/bin/
+EXECUTABLE=encoder2artnet
 
-install: build/gpio
-	cp -f build/gpio /usr/local/bin/gpio
+all: build/$(EXECUTABLE)
 
-build/gpio: build/gpio.o build/ArtNetSender.o
-	gcc -o build/gpio build/gpio.o build/ArtNetSender.o
+install: build/$(EXECUTABLE)
+	cp -f build/$(EXECUTABLE) $(INSTALLPATH)$(EXECUTABLE)
 
-build/gpio.o: gpio.c
+build/$(EXECUTABLE): build/encoder2artnet.o build/artnetsender.o
+	$(CC) -o build/$(EXECUTABLE) build/encoder2artnet.o build/artnetsender.o
+
+build/encoder2artnet.o: encoder2artnet.c
 	mkdir -p build
-	gcc -std=c11 -c gpio.c -o build/gpio.o
+	$(CC) $(FLAGS) -c encoder2artnet.c -o build/encoder2artnet.o -lpthread
 
-build/ArtNetSender.o: ArtNetSender.c
+build/artnetsender.o: artnetsender.c
 	mkdir -p build
-	gcc -std=c11 -c ArtNetSender.c -o build/ArtNetSender.o
+	$(CC) $(FLAGS) -c artnetsender.c -o build/artnetsender.o
 
 clean:
 	rm build/*;

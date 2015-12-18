@@ -7,12 +7,14 @@
 #include <poll.h>
 #include <pthread.h>
 #include <semaphore.h>
-
+#include <time.h>
+#include "preferences.h"
 #include "artnetsender.h"
 
-// fuction definations
-void setup_io();
-void destroy_io();
+// Function definitions
+void setup_io(Conf* conf);
+void destroy_io(Conf* conf);
 void printButton(int g);
 void intHandler (int dummy);
 void *artnet_thread (void *arg);
+void *conf_thread (void *arg);

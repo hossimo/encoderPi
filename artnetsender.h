@@ -4,6 +4,7 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include "preferences.h"
 
 
 
@@ -22,11 +23,11 @@ typedef struct {
 
 // Type of Channel to send
 typedef enum ArtnetDataSize {
-    k8Bit,
-    k16Bit,
-    k24Bit,
-    k32Bit
+    k8Bit  = 8,
+    k16Bit = 16,
+    k24Bit = 24,
+    k32Bit = 32
 } dataSize;
 
 int buildSocket (void);
-int sendPacket (unsigned int socket, unsigned int universe, unsigned int startChannel, dataSize valueType, unsigned long value);
+size_t sendPacket (unsigned int socket, Conf *conf, unsigned long value);

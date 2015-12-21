@@ -5,7 +5,7 @@
 // globals
 static volatile int keepRunning = 1;            // handled by intHandler
 int gpioValues[kMAX_GPIO];                      // GPIOValues;
-const int pattern [4] = {0, 1, 3, 2};           // the pattern of the encoder
+const int pattern [4] = {0, 1, 3, 2};           // the Grey coding pattern of the encoder
 const int gpioCount = kMAX_GPIO;                // count of GPIOs, currently only support 2
 int fpValue [kMAX_GPIO];                        // file pointer for each GPIO value
 struct pollfd fds[kMAX_GPIO];                   // file change poll for each GPIO
@@ -23,6 +23,9 @@ int main(int argc, const char * argv[])
 {
     printf("encoder2Artnet starting up.\n\n");
     
+    // setup signal handler
+    signal (SIGINT, intHandler);
+    
     // start conf thread
     int threadResult;
     pthread_t threadConf;
@@ -30,30 +33,27 @@ int main(int argc, const char * argv[])
     if (threadResult) {
         printf("failed to create configuration worker thread [%d]\n", threadResult);
     }
-    
-    // artnet thread
-    pthread_t threadArtnet;
-    threadResult = pthread_create(&threadArtnet, NULL,&artnet_thread, conf);
-    if (threadResult) {
-        printf("failed to create artnet thread [%d]\n", threadResult);
-    }
-    
+
     // wait for conf
     int confWait = 0;
     while (!conf) {
         sleep(1);
         confWait++;
     }
-    
+    // if after 10 seconds we still don't have a conf file, something is wrong.
     if (confWait > 10){
         printf("configuration file did not load, exitting.\n");
         exit(1);
     }
     
-    // setup signal handler
-    signal (SIGINT, intHandler);
+    // start artnet thread
+    pthread_t threadArtnet;
+    threadResult = pthread_create(&threadArtnet, NULL,&artnet_thread, conf);
+    if (threadResult) {
+        printf("failed to create artnet thread [%d]\n", threadResult);
+    }
     
-    // turn the cursor off
+    // turn the cursor off and print the debug header
     printf("\n\e[?25l");
     printf("\n");
     printf("GPIO 10│11\n");

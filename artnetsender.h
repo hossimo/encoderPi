@@ -30,4 +30,4 @@ typedef enum ArtnetDataSize {
 } dataSize;
 
 int buildSocket (void);
-size_t sendPacket (unsigned int socket, Conf *conf, unsigned long value);
+size_t sendPacket (unsigned int socket, unsigned long value);

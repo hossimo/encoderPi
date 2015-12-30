@@ -40,31 +40,34 @@ int buildSocket (){
     return localSocket;
 }
 
-size_t sendPacket (unsigned int socket,  Conf *conf, unsigned long value){
+size_t sendPacket (unsigned int socket, /* Conf *conf, */ unsigned long value){
+    Conf localConf = readPrefs();
     //TODO: mutex access of *conf
     //TODO: keep a local conf
     //TODO: check if conf has changes
+    //TODO: Get Conf yourself
     
     // setup Packet
     // who should we send this data too?
-    if (!conf)
+    if (!localConf.sendToAddress)
         return 0;
-    if (lastConfTime != conf->lastTime) {
-        memcpy(&lastConf, conf, sizeof(Conf));
-        memset(artnetPacket.data, 0,  sizeof(artnetPacket.data));
+    
+    if (lastConfTime != localConf.lastTime) {
+        lastConf = localConf;
+        memset(artnetPacket.data, 0,  sizeof(artnetPacket.data));   // zero out DMX data to avoid stale values
     }
     
-    inet_pton(AF_INET, conf->sendToAddress, &address.sin_addr);
+    inet_pton(AF_INET, localConf.sendToAddress, &address.sin_addr);
     
     //tmp local variables
-    unsigned int startChannel = conf->startAddress < 1 ? 0 : conf->startAddress - 1;
+    unsigned int startChannel = localConf.startAddress < 1 ? 0 : localConf.startAddress - 1;
     
-    artnetPacket.subUni = conf->universe;
+    artnetPacket.subUni = localConf.universe;
     artnetPacket.seq = seq++ % 512;
     address.sin_port = htons(0x1936);
     address.sin_family = AF_INET;
     
-    switch (conf->dataBits) {
+    switch (localConf.dataBits) {
         case k8Bit:
             artnetPacket.data[startChannel] = value & 0xff;
             break;

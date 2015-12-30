@@ -17,7 +17,7 @@ typedef struct Conf {
   time_t lastTime;
   unsigned int universe;
   unsigned int startAddress;
-    unsigned int dataBits;
+  unsigned int dataBits;
   unsigned int gpioA;
   unsigned int gpioB;
   unsigned int artnetUpdateRate;
@@ -25,6 +25,9 @@ typedef struct Conf {
 } Conf;
 #endif
 
-Conf *readPrefs (void);
+Conf readPrefs (void);
 void writePrefs (Conf prefs);
 FILE* openPrefs (const char *mode);
+
+//debug:
+void dumpCurrentConf ();

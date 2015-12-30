@@ -12,8 +12,8 @@
 #include "artnetsender.h"
 
 // Function definitions
-void setup_io(Conf* conf);
-void destroy_io(Conf* conf);
+void setup_io();
+void destroy_io();
 void printButton(int g);
 void intHandler (int dummy);
 void *artnet_thread (void *arg);

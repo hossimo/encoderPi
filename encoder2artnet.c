@@ -11,7 +11,8 @@ int fpValue [kMAX_GPIO];                        // file pointer for each GPIO va
 struct pollfd fds[kMAX_GPIO];                   // file change poll for each GPIO
 struct pollfd fdsConf;                          // file change poll for Conf
 long counter = 0;                               // position counter
-Conf *conf = NULL;
+
+Conf conf; // TODO: Do we really need this?
 
 // enums
 typedef enum {kWAIT, kRIGHT, kLEFT} encodermode;
@@ -33,22 +34,10 @@ int main(int argc, const char * argv[])
     if (threadResult) {
         printf("failed to create configuration worker thread [%d]\n", threadResult);
     }
-
-    // wait for conf
-    int confWait = 0;
-    while (!conf) {
-        sleep(1);
-        confWait++;
-    }
-    // if after 10 seconds we still don't have a conf file, something is wrong.
-    if (confWait > 10){
-        printf("configuration file did not load, exitting.\n");
-        exit(1);
-    }
     
     // start artnet thread
     pthread_t threadArtnet;
-    threadResult = pthread_create(&threadArtnet, NULL,&artnet_thread, conf);
+    threadResult = pthread_create(&threadArtnet, NULL,&artnet_thread, NULL);
     if (threadResult) {
         printf("failed to create artnet thread [%d]\n", threadResult);
     }
@@ -65,6 +54,14 @@ int main(int argc, const char * argv[])
     int currentPosition = -1;
     int cycle = -1;
     while (keepRunning){
+       if ((fds[0].fd == 0)  && (fds[1].fd == 0)) {
+           struct timespec ts;
+           ts.tv_sec = 0;
+           ts.tv_nsec = 1000000000/2;
+           nanosleep(&ts, NULL);
+            continue;
+        }
+        
         int ret = poll(fds, gpioCount, -1);
         
         //check for error
@@ -94,8 +91,7 @@ int main(int argc, const char * argv[])
         //not yet sure where we are
         if (mode == kWAIT) {
             for (int i = 0; i <= 3; i++) {
-                if (pattern[i] == currentPosition)
-                {
+                if (pattern[i] == currentPosition) {
                     cycle = i;
                     break;
                 }
@@ -151,10 +147,11 @@ int main(int argc, const char * argv[])
 }
 
 
-void setup_io(Conf* conf)
+void setup_io()
 {
-    int fp;        //generic file pointer
-    int gpios[2] = {conf->gpioA, conf->gpioB};
+    Conf conf = readPrefs();
+    int fp;                                     //generic file pointer
+    int gpios[2] = {conf.gpioA, conf.gpioB};
     
     for (int i = 0 ; i < gpioCount ; i++){
         char string[128];
@@ -209,12 +206,12 @@ void setup_io(Conf* conf)
     }
 }
 
-void destroy_io(Conf* conf)
+void destroy_io(Conf conf)
 {
     printf("Destroying previous GPIO\n");
     int fp;        //generic file pointer
     char string[128];
-    int gpios[kMAX_GPIO] = { conf->gpioA , conf->gpioB };
+    int gpios[kMAX_GPIO] = { conf.gpioA , conf.gpioB };
 
     for (int i = 0 ; i < gpioCount ; i++){
         close(fpValue[i]);
@@ -230,7 +227,6 @@ void destroy_io(Conf* conf)
             write(fp, &string, 128);
         }
         close(fp);
-
     }
 }
 
@@ -257,10 +253,10 @@ void *artnet_thread (void *arg) {
     struct timespec ts, ts2;
     
     while (keepRunning) {
-        if (conf){
+        if (conf.artnetUpdateRate){
             ts.tv_sec = 0;
-            ts.tv_nsec = conf->artnetUpdateRate == 0 ? 1 : 1000000000/conf->artnetUpdateRate;
-            sendPacket (socket, conf, counter);
+            ts.tv_nsec = conf.artnetUpdateRate == 0 ? 1 : 1000000000/conf.artnetUpdateRate;
+            sendPacket (socket, counter);
         } else {
             ts.tv_sec = 0;
             ts.tv_nsec = 1000000000/2;
@@ -273,15 +269,15 @@ void *artnet_thread (void *arg) {
 // void *conf_thread (void *arg)
 void *conf_thread (void *arg){
     while (keepRunning){
-        Conf *newConf = readPrefs();
+        Conf newConf = readPrefs();
         // if this is the first time through.
-        if (!conf) {
-            setup_io(newConf);
+        if (conf.lastTime == 0) {
+            setup_io(readPrefs());
             conf = newConf;
         }
         
         // if the GPIOs are diffrent
-        if ((newConf->gpioA != conf->gpioA) || (newConf->gpioB != conf->gpioB)) {
+        if ((newConf.gpioA != conf.gpioA) || (newConf.gpioB != conf.gpioB)) {
             destroy_io(conf);
             setup_io(newConf);
         }
